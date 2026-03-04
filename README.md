@@ -1,10 +1,6 @@
 # MCUCoder — Progressive Learned Image Compression
 
-A convolutional autoencoder that supports multiple bitrate–quality operating
-points from a single trained model.  During training, random *tail-dropout* of
-latent channels forces early channels to carry the most important image
-information.  At inference time, any prefix of 1–12 channels can be decoded
-independently, trading bitrate for reconstruction quality without re-encoding.
+A convolutional autoencoder that supports multiple bitrate–quality operating points from a single trained model. During training, random *tail-dropout* of latent channels forces early channels to carry the most important image information. At inference time, any prefix of 1–12 channels can be decoded independently, trading bitrate for reconstruction quality without re-encoding.
 
 ---
 
@@ -12,18 +8,13 @@ independently, trading bitrate for reconstruction quality without re-encoding.
 
 1. [Project Overview](#1-project-overview)
 2. [Repository Layout](#2-repository-layout)
-3. [Environment Setup](#3-environment-setup)
-4. [Dataset Download](#4-dataset-download)
-   - 4.1 [Kodak Validation Set](#41-kodak-validation-set)
-   - 4.2 [ImageNet Training Subset](#42-imagenet-training-subset)
-   - 4.3 [Pre-trained Model Weights](#43-pre-trained-model-weights)
-5. [How to Run](#5-how-to-run)
-   - 5.1 [Training](#51-training)
-   - 5.2 [Evaluation](#52-evaluation)
-   - 5.3 [ImageNet Preparation](#53-imagenet-preparation-optional)
-6. [Configuration Reference](#6-configuration-reference)
-7. [Output Files](#7-output-files)
-8. [Architecture Summary](#8-architecture-summary)
+3. [File Descriptions](#3-file-descriptions)
+4. [Environment Setup](#4-environment-setup)
+5. [Dataset Download](#5-dataset-download)
+6. [How to Run](#6-how-to-run)
+7. [Configuration Reference](#7-configuration-reference)
+8. [Output Files](#8-output-files)
+9. [Architecture Summary](#9-architecture-summary)
 
 ---
 
@@ -47,62 +38,146 @@ independently, trading bitrate for reconstruction quality without re-encoding.
 ```
 ELG5378_Project/
 │
-├── main.py                    ← entry point (always run from here)
-├── requirements.txt
+├── main.py                      ← entry point (always run from here)
+├── env_check.py                 ← quick device check utility
+├── requirements.txt             ← pip dependencies
 ├── README.md
+├── .gitignore
 │
-├── src/                   ← source package
+├── src/                         ← source package
 │   ├── __init__.py
-│   ├── config.py              ← all paths and hyperparameters
-│   ├── data.py                ← RecursiveImageDataset + DataLoaders
-│   ├── model.py               ← Encoder, Decoder, MCUCoder
-│   ├── losses.py              ← ProgressiveLoss, PSNR, MS-SSIM helpers
-│   ├── train.py               ← training loop + LR schedule + checkpointing
-│   ├── evaluate.py            ← RD evaluation + quantization + plots
-│   ├── prepare_data.py        ← ImageNet high-res selection & preprocessing
-│   └── utils.py               ← set_seed, get_device, format_metrics
+│   ├── main.py                  ← stub (do not run directly)
+│   ├── config.py                ← all paths and hyperparameters
+│   ├── data.py                  ← RecursiveImageDataset + DataLoaders
+│   ├── model.py                 ← Encoder, Decoder, MCUCoder
+│   ├── losses.py                ← ProgressiveLoss, PSNR, MS-SSIM helpers
+│   ├── train.py                 ← training loop + LR schedule + checkpointing
+│   ├── evaluate.py              ← RD evaluation + quantization + plots
+│   ├── prepare_data.py          ← ImageNet high-res selection & preprocessing
+│   └── utils.py                 ← set_seed, get_device, format_metrics
 │
-├── datasets/                  ← place raw data here (created by you)
-│   ├── kodak/                 ← 24 Kodak PNG images
+├── download_scripts/
+│   ├── download_kodak.sh        ← Kodak dataset download (macOS/Linux)
+│   ├── download_kodak.bat       ← Kodak dataset download (Windows)
+│   └── download_imagenet.py     ← ImageNet subset download via Hugging Face
+│
+├── datasets/                    ← place raw data here (created by you)
+│   ├── kodak/                   ← 24 Kodak PNG images
 │   ├── imagenet/
-│   │   └── train/             ← raw ImageNet class subdirectories
-│   └── imagenet_prepared/     ← flat PNG output from prepare step (auto)
+│   │   └── train/               ← raw ImageNet class subdirectories
+│   └── imagenet_prepared/       ← flat PNG output from prepare step (auto)
 │
-└── outputs/                   ← auto-created at runtime
+└── outputs/                     ← auto-created at runtime
     ├── checkpoints/
-    │   └── mcucoder.pth       ← best model checkpoint
+    │   └── mcucoder.pth         ← best model checkpoint
     └── results/
-        ├── eval_summary.json  ← numeric RD results
-        ├── rd_curves.pdf      ← rate-distortion plot
-        └── *.png              ← sample reconstructions
+        ├── eval_summary.json    ← numeric RD results
+        ├── rd_curves.pdf        ← rate-distortion plot
+        └── *.png                ← sample reconstructions
 ```
 
 ---
 
-## 3. Environment Setup
+## 3. File Descriptions
 
-### 3.1 Create and activate a virtual environment
+### Root-level files
+
+**`main.py`** — The sole entry point for the project. Presents an interactive menu to select between training (option 1), evaluation (option 2), and ImageNet preparation (option 3). Always run this from the repository root.
+
+**`env_check.py`** — Standalone utility that imports `get_device()` from `src/utils.py` and prints the detected compute device (CUDA / MPS / CPU). Useful for verifying your environment before a long training run.
+
+**`requirements.txt`** — All pip dependencies. Core packages are `torch`, `torchvision`, `torchmetrics`, `compressai`, `Pillow`, `opencv-python`, `numpy`, `tqdm`, `matplotlib`, and `datasets` (Hugging Face).
+
+**`.gitignore`** — Excludes virtual environments (`venv/`, `venvMAC/`, `venvPC/`), model weights (`*.pth`, `*.pt`), outputs, datasets, IDE files, and OS junk.
+
+---
+
+### `src/` package
+
+**`src/config.py`** — Single source of truth for all paths and hyperparameters. Resolves all directory paths as absolute paths relative to the repository root so the project runs correctly from any working directory. Automatically selects `imagenet_prepared/` as the training directory if it exists, falling back to raw `imagenet/train/`. All training, evaluation, and architecture hyperparameters are stored in the `CONFIG` dict.
+
+**`src/model.py`** — Defines the full MCUCoder architecture:
+- `ResidualBottleneckBlock` — 1×1 → 3×3 → 1×1 bottleneck block with learned skip connection.
+- `Encoder` — Lightweight 3-layer CNN that maps `(B, 3, 224, 224)` → `(B, 12, 28, 28)`.
+- `Decoder` — Deep residual decoder with `compressai` `AttentionBlock`s and three deconvolution stages that maps `(B, 12, 28, 28)` → `(B, 3, 224, 224)`.
+- `MCUCoder` — Full model combining encoder and decoder with stochastic tail-dropout. During training, a random number of channels `k ∈ [1, 12]` is kept active; during evaluation, a fixed `keep_fraction` can be specified.
+
+**`src/data.py`** — Dataset and DataLoader utilities:
+- `RecursiveImageDataset` — Recursively scans any directory for images (supports `.jpg`, `.jpeg`, `.png`, `.bmp`, `.webp`). Resizes the shortest edge to `image_size` then center-crops to a square. Works for both flat directories (Kodak) and class-subdirectory trees (ImageNet).
+- `build_dataloaders` — Returns a `(train_loader, val_loader)` pair. The training loader shuffles and drops incomplete batches; the validation loader uses `batch_size=1`.
+
+**`src/losses.py`** — Loss functions and quality metrics:
+- `ProgressiveLoss` — Combined MS-SSIM + MSE loss: `L = λ·(1−MS-SSIM) + (1−λ)·MSE`. Uses `torchmetrics` for MS-SSIM computation.
+- `MSELoss` — Plain mean-squared-error alternative.
+- `compute_psnr` — Batch-averaged PSNR in dB; returns 99.0 dB for numerically perfect reconstructions.
+- `compute_msssim_db` — Batch-averaged MS-SSIM converted to dB scale: `−10·log₁₀(1−MS-SSIM)`.
+
+**`src/train.py`** — Full training loop:
+- Builds DataLoaders from config, instantiates the model, chooses loss based on `CONFIG["loss"]`, and sets up an Adam optimizer with a StepLR scheduler.
+- Each epoch: trains with stochastic tail-dropout, then validates at three representative bitrate levels (2 / 6 / 12 active channels).
+- Saves a checkpoint to `outputs/checkpoints/mcucoder.pth` whenever validation loss improves.
+
+**`src/evaluate.py`** — Rate-distortion evaluation:
+- Loads a saved checkpoint and evaluates MCUCoder on the Kodak set for each channel count k ∈ {1, …, 12}, applying per-channel uniform quantization to simulate realistic bitrates.
+- Evaluates a JPEG baseline at 6 quality levels for comparison.
+- Computes bpp using the formula `bpp = (Hz·Wz·k·b) / (Hx·Wx)`.
+- Saves: `eval_summary.json` (numeric results), `rd_curves.pdf` (two-panel RD plot), and sample reconstruction PNGs.
+
+**`src/prepare_data.py`** — ImageNet preprocessing:
+- Scans the raw ImageNet directory for all images and selects the N highest-resolution ones.
+- For each selected image: optionally halves resolution if the shorter side exceeds 512 px (bicubic, via OpenCV), adds small uniform noise, and saves as a flat PNG in `datasets/imagenet_prepared/`.
+
+**`src/utils.py`** — General utilities:
+- `set_seed(seed)` — Seeds Python, NumPy, and PyTorch RNGs for reproducibility.
+- `get_device(preferred)` — Returns the best available device: CUDA → MPS → CPU.
+- `ensure_dir(path)` — Creates a directory and all parents if they don't exist.
+- `format_metrics(metrics)` — Formats a `dict[str, float]` as a compact single-line string for logging.
+
+**`src/__init__.py`** — Empty package marker.
+
+**`src/main.py`** — Stub file. The actual entry point is the root-level `main.py`.
+
+---
+
+### `download_scripts/`
+
+**`download_scripts/download_kodak.sh`** — zsh script to download all 24 Kodak PNG images into `datasets/kodak/`. Uses `curl` in a loop from `r0k.us`. Intended for macOS / Linux.
+
+**`download_scripts/download_kodak.bat`** — Windows equivalent of the above, using `curl` in a `for /L` batch loop.
+
+**`download_scripts/download_imagenet.py`** — Python script that streams the `imagenet-1k` dataset from Hugging Face and saves up to 300,000 images as JPEGs into `datasets/imagenet/train/`. Requires `datasets` and `tqdm`.
+
+---
+
+## 4. Environment Setup
+
+### Create and activate a virtual environment
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate        # Linux / macOS
+source .venv/bin/activate        # macOS / Linux (zsh)
 # .venv\Scripts\activate         # Windows
 ```
 
-### 3.2 Install dependencies
+### Install dependencies
 
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-> **GPU note:** For CUDA support make sure you install the matching `torch`
-> wheel from <https://pytorch.org/get-started/locally/>.  The code
-> auto-detects CUDA → MPS → CPU at runtime.
+> **GPU note:** For CUDA support, install the matching `torch` wheel from <https://pytorch.org/get-started/locally/>. The code auto-detects CUDA → MPS → CPU at runtime.
+
+### Verify your device
+
+```bash
+python env_check.py
+# Expected output: Using device: mps  (or cuda / cpu)
+```
 
 ---
 
-## 4. Dataset Download
+## 5. Dataset Download
 
 Create the expected directories first:
 
@@ -111,70 +186,42 @@ mkdir -p datasets/imagenet/train
 mkdir -p datasets/kodak
 ```
 
-### 4.1 Kodak Validation Set
+### Kodak Validation Set (required for training + evaluation)
 
-24 lossless PNG images (the standard compression benchmark):
-
+**macOS / Linux:**
 ```bash
-for i in $(seq -w 1 24); do
-  curl -L "https://r0k.us/graphics/kodak/kodak/kodim${i}.png" \
-       -o "datasets/kodak/kodim${i}.png"
-done
+zsh download_scripts/download_kodak.sh
 ```
 
-This downloads ~35 MB and takes under a minute.
+**Windows:**
+```bat
+download_scripts\download_kodak.bat
+```
 
-### 4.2 ImageNet Training Subset
+Downloads 24 lossless PNG images (~35 MB) to `datasets/kodak/`.
 
-The project uses a 300 k-image subset of ILSVRC-2012.  You need a valid
-ImageNet account to download the raw data.
+### ImageNet Training Subset (required for training only)
 
 **Option A — you already have ImageNet locally:**
 
-Place (or symlink) the `train/` directory at:
+Place or symlink the `train/` directory at `datasets/imagenet/train/`. The loader scans recursively, so class subdirectories are handled automatically.
 
-```
-datasets/imagenet/train/
-```
-
-The loader scans recursively, so class subdirectories are handled
-automatically.
-
-**Option B — use a public subset (e.g. ImageNet-1k via Hugging Face):**
+**Option B — download via Hugging Face (~300k images):**
 
 ```bash
-pip install datasets
-python - <<'EOF'
-from datasets import load_dataset
-ds = load_dataset("imagenet-1k", split="train", streaming=True,
-                  trust_remote_code=True)
-import os, io
-from PIL import Image
-out = "datasets/imagenet/train"
-os.makedirs(out, exist_ok=True)
-for i, example in enumerate(ds):
-    if i >= 300_000:
-        break
-    example["image"].convert("RGB").save(f"{out}/{i:07d}.jpg")
-EOF
+python download_scripts/download_imagenet.py
 ```
 
-**Option C — run the built-in preparation step (after placing raw data):**
+Requires a Hugging Face account and `datasets` package. Downloads images as JPEGs to `datasets/imagenet/train/`.
+
+**Option C — run the built-in preparation step after placing raw data:**
 
 ```bash
 python main.py
 # → choose 3 (Prepare)
 ```
 
-This selects the 300 k highest-resolution images, optionally halves very
-large ones, adds a tiny noise perturbation, and saves flat PNGs to
-`datasets/imagenet_prepared/`.  The training step uses this prepared
-directory automatically when it exists.
-
-### 4.3 Pre-trained Model Weights
-
-If you want to skip training and evaluate the reference weights provided by
-the MCUCoder authors:
+### Pre-trained Weights (skip training)
 
 ```bash
 pip install gdown
@@ -184,15 +231,34 @@ gdown "1aWLukhsRV5Fi_DFJUbL5nBdwNhGDpNe0" -O outputs/checkpoints/mcucoder.pth
 
 ---
 
-## 5. How to Run
+## 6. How to Run
 
-**All commands must be run from the repository root** (`ELG5378_Project/`):
+**All commands must be run from the repository root** (`ELG5378_Project/`).
+
+### Recommended order for a full run from scratch
+
+```bash
+# Step 1 — Download Kodak validation set
+zsh download_scripts/download_kodak.sh
+
+# Step 2 — Download or place ImageNet training images
+python download_scripts/download_imagenet.py   # or place manually
+
+# Step 3 — (Optional) Preprocess ImageNet
+python main.py   # → choose 3
+
+# Step 4 — Train
+python main.py   # → choose 1
+
+# Step 5 — Evaluate
+python main.py   # → choose 2
+```
+
+### Interactive menu
 
 ```bash
 python main.py
 ```
-
-You will see:
 
 ```
 ============================================================
@@ -207,115 +273,111 @@ Select an action:
 Enter 1, 2, or 3:
 ```
 
-### 5.1 Training
+### Option 1 — Train
 
 ```
 Enter 1, 2, or 3: 1
 ```
 
-What happens:
-- Loads ImageNet training images recursively from `datasets/imagenet/train/`
-  (or `datasets/imagenet_prepared/` if it exists).
-- Loads Kodak validation images from `datasets/kodak/`.
-- Trains MCUCoder with stochastic tail-dropout.
-- Validates at 3 bitrate levels (2 / 6 / 12 channels) after every epoch.
-- Saves the **best checkpoint** (by validation loss) to
-  `outputs/checkpoints/mcucoder.pth`.
+- Loads ImageNet images from `datasets/imagenet_prepared/` (if it exists) or `datasets/imagenet/train/`.
+- Validates on Kodak after each epoch at 3 bitrate levels (2 / 6 / 12 active channels).
+- Saves the best checkpoint (by validation loss) to `outputs/checkpoints/mcucoder.pth`.
 
-**Key hyperparameters** (edit `project/config.py`):
+**Key hyperparameters to tune in `src/config.py`:**
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `num_epochs` | 10 | Epochs (use 50–150 for production) |
-| `batch_size` | 16 | Training batch size |
-| `learning_rate` | 1e-4 | Adam learning rate |
-| `lr_decay_epoch` | 9 | Epoch for ×0.1 LR decay |
+| Key | Default | Notes |
+|-----|---------|-------|
+| `num_epochs` | 10 | Use 50–150 for production quality |
+| `batch_size` | 16 | Reduce if GPU memory is limited |
+| `learning_rate` | 1e-4 | Adam LR |
+| `lr_decay_epoch` | 9 | Epoch at which LR decays by ×0.1 |
 | `loss` | `"msssim"` | `"msssim"` or `"mse"` |
-| `lambda_msssim` | 0.9 | Weight of MS-SSIM term |
+| `lambda_msssim` | 0.9 | MS-SSIM weight in the combined loss |
+| `decoder_channels` | 196 | Internal decoder width (reduce for faster training) |
 
-### 5.2 Evaluation
+### Option 2 — Evaluate
 
 ```
 Enter 1, 2, or 3: 2
 ```
 
-What happens:
-- Loads the checkpoint from `outputs/checkpoints/mcucoder.pth`.
-- Calibrates per-channel quantization statistics from the Kodak set.
-- For each active channel count k ∈ {1 … 12}:
-  - Zeros out channels k+1 … 12.
-  - Applies uniform quantization (step=4, 6 bpp) to k active channels.
-  - Decodes and measures PSNR, MS-SSIM, and bpp.
-- Evaluates JPEG at 6 quality levels for comparison.
-- Saves outputs in `outputs/results/`.
+- Requires a trained checkpoint at `outputs/checkpoints/mcucoder.pth`.
+- Evaluates MCUCoder for k ∈ {1, …, 12} active channels on all 24 Kodak images.
+- Applies uniform quantization (`step=4`, `bits=6`) to simulate realistic bitrates.
+- Runs JPEG baseline at 6 quality levels.
+- Saves outputs to `outputs/results/`.
 
-### 5.3 ImageNet Preparation (optional)
+### Option 3 — Prepare ImageNet
 
 ```
 Enter 1, 2, or 3: 3
 ```
 
-Pre-processes raw ImageNet: selects the 300 k highest-resolution images,
-halves very large ones (shorter side > 512 px), adds small noise, and saves
-to `datasets/imagenet_prepared/`.
+- Requires raw ImageNet images in `datasets/imagenet/train/`.
+- Selects the 300k highest-resolution images, optionally halves very large ones, adds small noise, and saves flat PNGs to `datasets/imagenet_prepared/`.
+- Run once before training; subsequent training runs will automatically use the prepared directory.
 
 ---
 
-## 6. Configuration Reference
+## 7. Configuration Reference
 
-Edit `src/config.py`.  All paths are absolute, resolved relative to the
-repository root at import time.
+All settings are in `src/config.py` inside the `CONFIG` dict.
 
 ```python
 CONFIG = {
-    # Data
-    "train_data_dir": ...,   # auto-selects imagenet_prepared if it exists
-    "val_data_dir":   ...,   # datasets/kodak/
-    "image_size":     224,   # crop size (px)
+    # Data paths (auto-resolved at import time)
+    "train_data_dir": ...,        # imagenet_prepared/ if it exists, else imagenet/train/
+    "val_data_dir":   ...,        # datasets/kodak/
+    "image_size":     224,        # center-crop size (px)
 
     # DataLoader
     "batch_size":   16,
     "num_workers":  4,
 
-    # Model
-    "latent_channels":  12,    # latent channels (1–12 are used progressively)
-    "decoder_channels": 196,   # decoder internal width
+    # Model architecture
+    "latent_channels":  12,       # progressive bitrate levels: 1/12 … 12/12
+    "decoder_channels": 196,      # internal decoder width
 
     # Training
-    "num_epochs":    10,
-    "learning_rate": 1e-4,
+    "num_epochs":     10,
+    "learning_rate":  1e-4,
     "lr_decay_epoch": 9,
     "lr_gamma":       0.1,
-    "loss":          "msssim",
-    "lambda_msssim": 0.9,
+    "loss":           "msssim",   # "msssim" or "mse"
+    "lambda_msssim":  0.9,
 
     # Evaluation
     "eval_filter_counts": [1..12],
     "jpeg_qualities":     [10, 20, 35, 50, 65, 80],
-    "quant_step":         4,     # quantization step (64 levels)
-    "quant_bits":         6,     # bits per symbol for bpp formula
-    "num_visualizations": 4,
+    "quant_step":         4,      # uniform quantization step (64 levels)
+    "quant_bits":         6,      # bits per quantized symbol
+    "num_visualizations": 4,      # sample reconstructions saved per run
 
-    # Checkpoint
+    # Checkpointing
     "model_save_path": "outputs/checkpoints/mcucoder.pth",
+
+    # ImageNet preparation
+    "imagenet_raw_dir":     "datasets/imagenet/train/",
+    "imagenet_out_dir":     "datasets/imagenet_prepared/",
+    "num_images_to_select": 300_000,
 }
 ```
 
 ---
 
-## 7. Output Files
+## 8. Output Files
 
 | File | Description |
 |------|-------------|
-| `outputs/checkpoints/mcucoder.pth` | Best model weights (saved during training) |
+| `outputs/checkpoints/mcucoder.pth` | Best model weights saved during training |
 | `outputs/results/eval_summary.json` | PSNR / MS-SSIM / bpp for all bitrate points |
-| `outputs/results/rd_curves.pdf` | Rate-distortion plot (PSNR and MS-SSIM panels) |
-| `outputs/results/model_recon_k01_img*.png` | Sample reconstructions at lowest bitrate |
+| `outputs/results/rd_curves.pdf` | Two-panel RD plot (PSNR and MS-SSIM vs bpp) |
+| `outputs/results/model_recon_k01_img*.png` | Sample reconstructions at lowest bitrate (k=1) |
 | `outputs/results/jpeg_q10_img*.png` | Sample JPEG reconstructions at lowest quality |
 
 ---
 
-## 8. Architecture Summary
+## 9. Architecture Summary
 
 ```
 Input (B, 3, 224, 224)
@@ -326,7 +388,7 @@ Input (B, 3, 224, 224)
  │  3 layers    │  Output: (B, 12, 28, 28)
  └──────┬───────┘
         │  Tail-dropout during training: zero channels k+1 … 12
-        │  Quantization during eval:  6-bit uniform per channel
+        │  Quantization during eval:     6-bit uniform per channel
         ▼
  ┌──────────────┐
  │   Decoder    │  AttentionBlock → 3×deconv (stride 2) + residual blocks
