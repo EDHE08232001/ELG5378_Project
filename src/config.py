@@ -8,7 +8,7 @@ project can be run from any working directory.
 import os
 
 # ── Path resolution ────────────────────────────────────────────────────────────
-# This file lives in  <repo_root>/project/, so one level up is the repo root.
+# This file lives in  <repo_root>/src/, so one level up is the repo root.
 _HERE     = os.path.abspath(os.path.dirname(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, os.pardir))
 
