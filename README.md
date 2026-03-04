@@ -60,6 +60,7 @@ ELG5378_Project/
 │   ├── download_kodak.sh        ← Kodak dataset download (macOS/Linux)
 │   ├── download_kodak.bat       ← Kodak dataset download (Windows)
 │   └── download_imagenet.py     ← ImageNet subset download via Hugging Face
+|   |__ download_pretrained_weights.py 
 │
 ├── datasets/                    ← place raw data here (created by you)
 │   ├── kodak/                   ← 24 Kodak PNG images
