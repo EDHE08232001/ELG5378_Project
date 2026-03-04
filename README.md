@@ -1,8 +1,5 @@
 # MCUCoder — Progressive Learned Image Compression
 
-> **ELG5378 Course Project** | University of Ottawa, Faculty of Engineering  
-> Edward He (`ehe058@uottawa.ca`) · Chujian Xiao (`cxiao077@uottawa.ca`)
-
 A convolutional autoencoder that supports **multiple bitrate–quality operating points from a single trained model**. During training, random *tail-dropout* of latent channels forces early channels to carry the most important image information. At inference time, any prefix of 1–12 channels can be decoded independently — trading bitrate for reconstruction quality without re-encoding.
 
 This project is inspired by and evaluated against the MCUCoder paper (Hojjat et al., NeurIPS 2024).
