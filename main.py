@@ -41,19 +41,19 @@ def main() -> None:
     choice = _menu()
 
     if choice == "1":
-        from project.train import train_model
+        from src.train import train_model
         print("\n── Training ─────────────────────────────────────────────")
         ckpt = train_model()
         print(f"\nTraining complete.  Checkpoint: {ckpt}")
 
     elif choice == "2":
-        from project.evaluate import evaluate_model
+        from src.evaluate import evaluate_model
         print("\n── Evaluation ───────────────────────────────────────────")
         summary = evaluate_model()
         print(f"\nEvaluation complete.  Summary: {summary}")
 
     elif choice == "3":
-        from project.prepare_data import prepare_imagenet
+        from src.prepare_data import prepare_imagenet
         print("\n── ImageNet Preparation ─────────────────────────────────")
         out_dir = prepare_imagenet()
         print(f"\nPreparation complete.  Output directory: {out_dir}")
