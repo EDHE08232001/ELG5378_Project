@@ -1,21 +1,56 @@
-# ignore all python virtual environments
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Virtual environments
 venv/
 venvMAC/
 venvPC/
+.pythonlibs/
+.venv/
 
-# ignore all pycache files
-__pycache__/
-
-# ignore all .env files
+# Environment variables
 .env
+.env.*
 
-# ignore all .vscode files
+# IDE / Editor
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# ignore system junk files
-._*
+# OS junk
 .DS_Store
-.replit
-.replit.md
-.agents/
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Replit
+.cache/
+.local/
 .config/
+.agents/
+
+# Project outputs
+outputs/
+datasets/
+
+# PyTorch model files
+*.pth
+*.pt
+*.onnx
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
