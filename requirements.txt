@@ -1,26 +1,23 @@
-# Core ML Frameworks
+# ── Core ML ────────────────────────────────────────────────────────────────────
 torch>=2.3.1
 torchvision>=0.18.1
-lightning>=2.3.0
-torchmetrics>=1.7.4
+torchmetrics>=1.7.4          # MS-SSIM metric
 
-# Image & Video Processing
-opencv-python>=4.10.0.84
+# ── Compression layers ─────────────────────────────────────────────────────────
+compressai>=1.2.6             # ResidualBottleneckBlock, AttentionBlock, deconv
+
+# ── Image processing ───────────────────────────────────────────────────────────
 Pillow>=11.2.1
-compressai>=1.2.6
+opencv-python>=4.10.0.84     # used in ImageNet preparation step (bicubic resize)
 
-# Data Handling & Compression
+# ── Utilities ──────────────────────────────────────────────────────────────────
 numpy>=1.19.5
-pandas>=1.1.1
-dahuffman>=0.4.1
-
-# Visualization & Logging
-matplotlib>=3.2.1
-seaborn>=0.13.2
-wandb>=0.17.2
 tqdm>=4.57.0
-torchsummary>=1.5.1
+matplotlib>=3.2.1             # rate-distortion plots
 
-# Optional/Deployment
-tensorflow>=2.18.0
-gdown>=4.7.3
+# ── Optional (not required by the main pipeline) ──────────────────────────────
+# lightning>=2.3.0            # PyTorch Lightning wrappers (not used here)
+# wandb>=0.17.2               # experiment tracking
+# dahuffman>=0.4.1            # Huffman coding for exact bpp estimation
+# tensorflow>=2.18.0          # TFLite encoder (edge-device deployment)
+# gdown>=4.7.3                # download pre-trained weights from Google Drive
