@@ -53,7 +53,7 @@ ELG5378_Project/
 ├── requirements.txt
 ├── README.md
 │
-├── project/                   ← source package
+├── src/                   ← source package
 │   ├── __init__.py
 │   ├── config.py              ← all paths and hyperparameters
 │   ├── data.py                ← RecursiveImageDataset + DataLoaders
@@ -265,7 +265,7 @@ to `datasets/imagenet_prepared/`.
 
 ## 6. Configuration Reference
 
-Edit `project/config.py`.  All paths are absolute, resolved relative to the
+Edit `src/config.py`.  All paths are absolute, resolved relative to the
 repository root at import time.
 
 ```python

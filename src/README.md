@@ -1,4 +1,4 @@
-# project/ — Source Package
+# src/ — Source Package
 
 This directory contains the MCUCoder source code as a Python package.
 
