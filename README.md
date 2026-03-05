@@ -27,10 +27,10 @@ This project is inspired by and evaluated against the MCUCoder paper (Hojjat et 
 | # | Proposal Objective | Status | Where |
 |---|---|---|---|
 | 1 | Implement a convolutional autoencoder in PyTorch | ✅ Done | `src/model.py` |
-| 2 | Train with stochastic tail-dropout to order latent channels by importance | ✅ Done | `src/model.py`, `src/train.py` |
-| 3 | Evaluate rate-distortion curves (bpp vs MS-SSIM and PSNR) | ✅ Done | `src/evaluate.py` |
-| 3 | Compare against JPEG baseline at multiple quality levels | ✅ Done | `src/evaluate.py` |
-| 3 | Compare against a non-progressive autoencoder baseline | ⚠️ Partial | Use `k=12` (full quality) as the non-progressive point |
+| 2 | Train with stochastic tail-dropout to order latent channels by importance | ❌ | `src/model.py`, `src/train.py` |
+| 3 | Evaluate rate-distortion curves (bpp vs MS-SSIM and PSNR) | ❌ | `src/evaluate.py` |
+| 3 | Compare against JPEG baseline at multiple quality levels | ❌ | `src/evaluate.py` |
+| 3 | Compare against a non-progressive autoencoder baseline | ❌ | Use `k=12` (full quality) as the non-progressive point |
 | 4 | Benchmark on edge device (DCT/DWT comparison, power efficiency) | ⏳ If time permits | Not yet implemented |
 
 ### What the code accomplishes relative to the proposal
