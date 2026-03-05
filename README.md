@@ -18,12 +18,11 @@ This project is inspired by and evaluated against the MCUCoder paper (Hojjat et 
 8. [Configuration Reference](#8-configuration-reference)
 9. [Output Files](#9-output-files)
 10. [Implementation Notes & Known Gaps](#10-implementation-notes--known-gaps)
+11. [References](#11-references)
 
 ---
 
 ## 1. Project Goals & Implementation Status
-
-The following table maps each objective from the project proposal to its implementation status in this codebase.
 
 | # | Proposal Objective | Status | Where |
 |---|---|---|---|
@@ -36,7 +35,7 @@ The following table maps each objective from the project proposal to its impleme
 
 ### What the code accomplishes relative to the proposal
 
-**Objective 1 — Autoencoder:** `src/model.py` defines a `Encoder` (3-layer lightweight CNN: 7×7→5×5→3×3) that maps `(B, 3, 224, 224)` to a `(B, 12, 28, 28)` latent, and a deep residual `Decoder` built with `compressai` `AttentionBlock`s and `ResidualBottleneckBlock`s that maps back to `(B, 3, 224, 224)`. This directly matches the architecture described in the proposal.
+**Objective 1 — Autoencoder:** `src/model.py` defines an `Encoder` (3-layer lightweight CNN: 7×7→5×5→3×3) that maps `(B, 3, 224, 224)` to a `(B, 12, 28, 28)` latent, and a deep residual `Decoder` built with `compressai` `AttentionBlock`s and `ResidualBottleneckBlock`s that maps back to `(B, 3, 224, 224)`. This directly matches the architecture described in the proposal.
 
 **Objective 2 — Stochastic tail-dropout:** During each training forward pass, `MCUCoder.forward()` draws a random `k ~ Uniform{1, …, 12}` and zeros channels `k+1 … 12` before decoding. This matches Equation 1 in the proposal and the MCUCoder paper exactly. The loss function `L = λ·(1 − MS-SSIM) + (1 − λ)·MSE` is implemented in `src/losses.py` as `ProgressiveLoss`.
 
@@ -53,7 +52,8 @@ ELG5378_Project/
 │
 ├── main.py                        ← sole entry point (always run from here)
 ├── env_check.py                   ← verify device (CUDA / MPS / CPU)
-├── requirements.txt
+├── requirements.txt               ← CPU / macOS / generic install
+├── requirementsCUDA.txt           ← GPU install (CUDA 12.4, no Conda needed)
 ├── README.md
 ├── .gitignore
 │
@@ -70,7 +70,7 @@ ELG5378_Project/
 ├── download_scripts/
 │   ├── download_kodak.sh          ← Kodak dataset (macOS/Linux)
 │   ├── download_kodak.bat         ← Kodak dataset (Windows)
-│   ├── download_imagenet.py       ← ImageNet subset via Hugging Face
+│   └── download_imagenet.py       ← ImageNet subset via Hugging Face
 │
 ├── datasets/                      ← place raw data here (you create these)
 │   ├── kodak/                     ← 24 lossless Kodak PNG images
@@ -131,12 +131,14 @@ Bitrate:  bpp = 28 × 28 × k × 6 / (224 × 224)  ≈ 0.094 × k
 ### Requirements
 
 - Python 3.9+
-- PyTorch 2.3+ (with optional CUDA or Apple MPS support)
+- PyTorch 2.3+ (CPU, CUDA 12.4, or Apple MPS)
+
+> **No standalone CUDA Toolkit or Conda installation required.** The CUDA-enabled PyTorch wheel bundles everything it needs — just use `requirementsCUDA.txt` (see below).
 
 ### Create and activate a virtual environment
 
 ```bash
-# macOS / Linux (zsh)
+# macOS / Linux
 python -m venv .venv
 source .venv/bin/activate
 
@@ -147,18 +149,36 @@ python -m venv .venv
 
 ### Install dependencies
 
+Choose the requirements file that matches your hardware:
+
+#### Option A — NVIDIA GPU (CUDA 12.4) — Recommended for training
+
+```bash
+pip install --upgrade pip
+pip install -r requirementsCUDA.txt
+```
+
+This pulls the CUDA-enabled PyTorch wheel directly from PyTorch's index (`cu124`). **No separate CUDA Toolkit installation or Conda environment is needed** — `pip` handles everything.
+
+> Requires an NVIDIA GPU with CUDA Compute Capability 6.1 or higher (GTX 10-series / RTX 20, 30, 40-series and newer). Driver version 520+ is sufficient.
+
+#### Option B — CPU / Apple Silicon (MPS)
+
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-> **GPU (CUDA):** Install the matching `torch` wheel from https://pytorch.org/get-started/locally/ before running `pip install -r requirements.txt`. The code auto-detects CUDA → MPS → CPU.
+The code auto-detects CUDA → MPS → CPU at runtime. Apple MPS (M1/M2/M3) is used automatically on macOS when available.
 
 ### Verify your device
 
 ```bash
 python env_check.py
-# Expected: Using device: mps   (or cuda / cpu)
+# Expected output examples:
+#   Using device: cuda   (NVIDIA GPU)
+#   Using device: mps    (Apple Silicon)
+#   Using device: cpu    (fallback)
 ```
 
 ---
@@ -195,20 +215,21 @@ ls datasets/kodak/ | wc -l   # should print 24
 
 **Option A — Download via Hugging Face (~300k images, ~30 GB):**
 
-Requires a free Hugging Face account. Log in first with `huggingface-cli login`, then:
+Requires a free Hugging Face account. Log in first, then run:
 ```bash
+huggingface-cli login
 python download_scripts/download_imagenet.py
 ```
 
 This streams the `imagenet-1k` dataset and saves up to 300,000 images as JPEGs into `datasets/imagenet/train/`. Expect several hours depending on your connection.
 
-**Option B — You already have ImageNet:**
+**Option B — Use an existing ImageNet copy:**
 
 Symlink or place the `ILSVRC/train/` directory at `datasets/imagenet/train/`. The `RecursiveImageDataset` loader scans subdirectories automatically.
 
 **Option C — Use a smaller subset for quick experiments:**
 
-You can point `train_data_dir` in `src/config.py` at any directory of images. Even 5,000–10,000 images are sufficient to verify the training pipeline end-to-end (quality will be lower than a full run).
+Point `train_data_dir` in `src/config.py` at any directory of images. Even 5,000–10,000 images are sufficient to verify the training pipeline end-to-end (quality will be lower than a full run).
 
 ---
 
@@ -276,7 +297,24 @@ Scans the raw ImageNet directory, selects the 300k highest-resolution images, op
 
 This section describes the complete workflow to reproduce the project's rate-distortion results, from scratch to final plots.
 
-### Step 1 — Download the Kodak validation set
+### Step 1 — Set up the environment
+
+Install dependencies for your hardware (see [Section 4](#4-environment-setup)):
+
+```bash
+# NVIDIA GPU (recommended)
+pip install -r requirementsCUDA.txt
+
+# CPU / Apple Silicon
+pip install -r requirements.txt
+```
+
+Verify the correct device is detected:
+```bash
+python env_check.py
+```
+
+### Step 2 — Download the Kodak validation set
 
 ```bash
 zsh download_scripts/download_kodak.sh
@@ -284,11 +322,11 @@ zsh download_scripts/download_kodak.sh
 
 Verify: 24 PNG files appear in `datasets/kodak/`.
 
-### Step 2 — Obtain training data
+### Step 3 — Obtain training data
 
 Choose one of the options in [Section 5](#5-dataset-download). For a quick sanity-check run, you can use 5,000–10,000 images from any public image dataset.
 
-### Step 3 — (Optional) Preprocess ImageNet
+### Step 4 — (Optional) Preprocess ImageNet
 
 If you downloaded raw ImageNet images, run the preparation step once:
 
@@ -298,13 +336,13 @@ python main.py   # → enter 3
 
 The prepared flat-PNG directory (`datasets/imagenet_prepared/`) will be used automatically on subsequent training runs.
 
-### Step 4 — Configure your experiment
+### Step 5 — Configure your experiment
 
 Open `src/config.py` and adjust:
 
 ```python
 CONFIG = {
-    "num_epochs":       100,     # 100 iterations ≈ production quality
+    "num_epochs":       100,     # 100 epochs ≈ production quality
     "batch_size":       16,      # reduce if memory-limited
     "decoder_channels": 196,     # reduce to 128 for faster iteration
     "loss":             "msssim",
@@ -313,40 +351,40 @@ CONFIG = {
 }
 ```
 
-For a quick experiment to verify the pipeline works before committing to a full run, use:
+For a quick smoke-test before a full run:
 ```python
-"num_epochs":       5,
-"decoder_channels": 128,
+"num_epochs":           5,
+"decoder_channels":     128,
 "num_images_to_select": 10_000,
 ```
 
-### Step 5 — Train the model
+### Step 6 — Train the model
 
 ```bash
 python main.py   # → enter 1
 ```
 
-Training progress is printed every epoch. The best checkpoint (lowest validation loss) is saved automatically to `outputs/checkpoints/mcucoder.pth`. You can interrupt and restart — the next run will overwrite the checkpoint only if it improves.
+Training progress is printed every epoch. The best checkpoint (lowest validation loss) is saved automatically to `outputs/checkpoints/mcucoder.pth`.
 
-> **Expected runtime:** ~30 min/epoch on a modern GPU with 300k images and `batch_size=16`. On Apple M-series (MPS), roughly 3–5× slower.
+> **Expected runtime:** ~30 min/epoch on a modern GPU with 300k images and `batch_size=16`. On Apple M-series (MPS), roughly 3–5× slower. On CPU only, training is not recommended beyond smoke-testing.
 
-### Step 6 — Evaluate and generate RD curves
+### Step 7 — Evaluate and generate RD curves
 
 ```bash
 python main.py   # → enter 2
 ```
 
-The evaluation loop runs all 12 channel-count levels × 24 Kodak images, then the JPEG baseline at 6 quality levels. On a CPU this takes 5–15 minutes.
+The evaluation loop runs all 12 channel-count levels × 24 Kodak images, then the JPEG baseline at 6 quality levels. On a GPU this takes 1–3 minutes; on CPU, 5–15 minutes.
 
 **Expected output in `outputs/results/rd_curves.pdf`:**
 
-The RD plot should show two curves on each panel:
+The RD plot shows two curves on each panel:
 - **MCUCoder (ours):** 12 points, one per channel count (k=1 to k=12), with bpp increasing from ~0.094 to ~1.125.
 - **JPEG baseline:** 6 points, one per quality level.
 
-A well-trained model should show the MCUCoder curve sitting above the JPEG curve (higher MS-SSIM at the same bpp), especially at low bitrates, consistent with the results in the MCUCoder paper.
+A well-trained model should show the MCUCoder curve sitting above the JPEG curve (higher MS-SSIM at the same bpp), especially at low bitrates.
 
-### Step 7 — Interpreting the JSON summary
+### Step 8 — Interpret the JSON summary
 
 Open `outputs/results/eval_summary.json`. The structure is:
 
@@ -366,9 +404,9 @@ Open `outputs/results/eval_summary.json`. The structure is:
 
 Use `msssim_db` values for comparison against the MCUCoder paper (which reports MS-SSIM in dB). Higher is better on both axes.
 
-### Step 8 — (Optional) Ablation: non-progressive baseline
+### Step 9 — (Optional) Ablation: non-progressive baseline
 
-To approximate the non-progressive autoencoder baseline described in the proposal, re-run evaluation after modifying `src/evaluate.py` to fix `k=12` for all images (i.e., always use all channels, no progressive truncation). Comparing this single-point result to the k=12 curve shows the cost of training with tail-dropout vs. training a fixed-rate model.
+To approximate the non-progressive autoencoder baseline, re-run evaluation after modifying `src/evaluate.py` to fix `k=12` for all images (i.e., always use all channels). Comparing this single-point result to the k=12 progressive curve shows the cost of tail-dropout training vs. training a fixed-rate model.
 
 ---
 
@@ -403,7 +441,7 @@ CONFIG = {
     "eval_filter_counts": list(range(1, 13)),  # k = 1 … 12
     "jpeg_qualities":     [10, 20, 35, 50, 65, 80],
     "quant_step":         4,       # uniform quantization step (64 levels = 256/4)
-    "quant_bits":         6,       # bits per symbol: ceil(log2(256/step)) = ceil(log2(64)) = 6
+    "quant_bits":         6,       # bits per symbol: ceil(log2(256/step)) = 6
     "num_visualizations": 4,       # sample images saved per evaluation run
 
     # Checkpointing
@@ -422,7 +460,7 @@ CONFIG = {
 
 | File | Description |
 |------|-------------|
-| `outputs/checkpoints/mcucoder.pth` | Best model weights (saved during training when val loss improves) |
+| `outputs/checkpoints/mcucoder.pth` | Best model weights (saved when val loss improves) |
 | `outputs/results/eval_summary.json` | PSNR, MS-SSIM (dB), and bpp for all 12 MCUCoder levels + 6 JPEG qualities |
 | `outputs/results/rd_curves.pdf` | Two-panel RD plot: PSNR vs bpp (left), MS-SSIM vs bpp (right) |
 | `outputs/results/model_recon_k01_img*.png` | Sample reconstructions at minimum bitrate (k=1) |
@@ -431,6 +469,15 @@ CONFIG = {
 ---
 
 ## 10. Implementation Notes & Known Gaps
+
+### Requirements files at a glance
+
+| File | Use case | PyTorch source |
+|------|----------|----------------|
+| `requirementsCUDA.txt` | NVIDIA GPU (CUDA 12.4) — no Conda, no separate toolkit | PyTorch CUDA wheel (`cu124`) |
+| `requirements.txt` | CPU, Apple MPS, or any non-CUDA setup | PyPI default (CPU wheel) |
+
+Both files pin the same library versions. The only difference is the `--extra-index-url` that causes `pip` to prefer the GPU-enabled PyTorch binary.
 
 ### Differences from the MCUCoder paper
 
@@ -448,18 +495,19 @@ CONFIG = {
 - **PSNR trade-off:** Because the loss is optimized for MS-SSIM, JPEG may achieve better PSNR at high bitrates. This is expected and consistent with the paper (Appendix A/B). The MS-SSIM RD curve is the primary comparison metric.
 - **Bitrate estimation:** The formula `bpp = Hz·Wz·k·b / (Hx·Wx)` assumes raw (uncompressed) channel transmission. Actual arithmetic coding would yield lower bpp. This is a conservative (pessimistic) estimate.
 - **Non-progressive baseline:** Not a separate model; approximate it by evaluating with `keep_fraction=1.0` fixed.
-- **Edge deployment (Objective 4):** TFLite/CMSIS-NN export and DCT/DWT baseline comparison are not yet implemented. The `requirements.txt` includes the commented-out `tensorflow` dependency for when this step is added.
+- **Edge deployment (Objective 4):** TFLite/CMSIS-NN export and DCT/DWT baseline comparison are not yet implemented.
 
 ### Tips for getting good results
 
-- **More epochs matter:** The model trained for 10 epochs will show a valid RD curve but will underperform JPEG at high bitrates. At 50–100 epochs the curve typically crosses JPEG around 0.2–0.3 bpp.
+- **More epochs matter:** The model trained for 10 epochs will show a valid RD curve but may underperform JPEG at high bitrates. At 50–100 epochs the curve typically crosses JPEG around 0.2–0.3 bpp.
 - **MS-SSIM loss is important:** Switching to pure MSE (`"loss": "mse"`) will improve PSNR numbers but hurt the MS-SSIM curve significantly.
 - **Reduce `decoder_channels` for faster experiments:** Setting `decoder_channels=128` cuts training time roughly in half with modest quality loss.
 - **`num_workers=0` on Windows:** If you encounter multiprocessing issues, set `num_workers` to `0` in `src/config.py`.
+- **CUDA out-of-memory:** Reduce `batch_size` to `8` or `4`. Each step requires roughly `batch_size × 3 × 224 × 224 × 4` bytes for inputs alone, plus decoder activations.
 
 ---
 
-## References
+## 11. References
 
 1. Hojjat, A., Haberer, J., & Landsiedel, O. (2024). MCUCoder: Adaptive Bitrate Learned Video Compression for IoT Devices. *NeurIPS 2024*.
 2. Lu, G. et al. (2019). DVC: An End-to-end Deep Video Compression Framework. *CVPR 2019*.
