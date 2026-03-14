@@ -312,8 +312,9 @@ def check_losses() -> None:
         mse_val = mse_fn(dummy, dummy).item()
         _ok(f"MSELoss OK (self-loss={mse_val:.6f}, expect ~0)")
 
+        dummy_224 = torch.rand(1, 3, 224, 224)
         prog_fn = ProgressiveLoss(lambda_msssim=0.9, device=torch.device("cpu"))
-        prog_val = prog_fn(dummy, dummy).item()
+        prog_val = prog_fn(dummy_224, dummy_224).item()
         _ok(f"ProgressiveLoss OK (self-loss={prog_val:.6f}, expect ~0)")
 
         psnr = compute_psnr(dummy, dummy)
