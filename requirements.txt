@@ -4,7 +4,8 @@ torchvision>=0.18.1
 torchmetrics>=1.7.4          # MS-SSIM metric
 
 # ── Compression layers ─────────────────────────────────────────────────────────
-compressai>=1.2.6             # ResidualBottleneckBlock, AttentionBlock, deconv
+# Install this separately using `--no-deps` to avoid "numpy<2.0" conflict
+# compressai>=1.2.6             # ResidualBottleneckBlock, AttentionBlock, deconv
 
 # ── Image processing ───────────────────────────────────────────────────────────
 Pillow>=11.2.1
