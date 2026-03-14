@@ -6,7 +6,10 @@ _HERE = os.path.abspath(os.path.dirname(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, os.pardir))
 OUT_DIR = os.path.join(REPO_ROOT, "datasets", "imagenet", "train")
 
-def download_data(num_images: int = 300_000) -> str:
+num_images = 300000
+dataset_name = "benjamin-paine/imagenet-1k-256x256"
+
+def download_data(num_images: int, dataset_name: str) -> str:
     """Downloads a subset of the ImageNet-1k dataset."""
     try:
         from datasets import load_dataset
@@ -19,7 +22,7 @@ def download_data(num_images: int = 300_000) -> str:
     print(f"Downloading {num_images:,} images to: {OUT_DIR}")
 
     ds = load_dataset(
-        "imagenet-1k", 
+        dataset_name, 
         split="train", 
         streaming=True, 
         trust_remote_code=True
@@ -35,4 +38,4 @@ def download_data(num_images: int = 300_000) -> str:
     return OUT_DIR
 
 if __name__ == "__main__":
-    download_data()
+    download_data(num_images, dataset_name)
